@@ -31,6 +31,7 @@ using CircularArrays
 #using Tullio
 using DiffEqOperators
 using BandedMatrices
+using CosmicStrings
 
 
 
@@ -43,18 +44,35 @@ n = 8;
 N = 2^n;
 t = 0.5N*Δx/Δt;
 
-Ȧ₁ = zeros(N,N);
-Ȧ₂ = zeros(N,N);
+Ċ₁ = zeros(N,N);
+Ċ₂ = zeros(N,N);
 
 μ,σ = 0, 0.1;
-A₁ = rand(Normal(μ,σ),N,N);
-A₂ = rand(Normal(μ,σ),N,N);
+C₁ = rand(Normal(μ,σ),N,N);
+C₂ = rand(Normal(μ,σ),N,N);
 
 t₀ = 0.1 ;
 t₂ = t/2 ;
 t₅ = t/5 ;
 t₁₀ = t/10 ;
 t₂₀ = t/20 ;
+P = zeros(N,N);
+
+
+@time begin
+    saving_circle(N, t₀, t₂₀,C₁,C₂,Ċ₁,Ċ₂, ω, η, Δx, Δt)
+end
+
+@time begin
+    saving_laplace!(N, 0.1, t₂₀,C₁,C₂,Ċ₁,Ċ₂, ω, η, Δx, Δt)
+end
+
+
+
+
+@time Laplacian_3D(N,A₁,Δx,P)
+
+@time Laplacian_7D!(P,A₁,Δx)
 
 @time begin
 A₁ = rand(Normal(μ,σ),N,N);
