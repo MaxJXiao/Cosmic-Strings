@@ -5,7 +5,6 @@ Pkg.add("BenchmarkTools")
 Pkg.add("Distributions")
 Pkg.add("CxxWrap")
 Pkg.add("JLD")
-Pkg.add("Images")
 Pkg.add("ImageIO")
 Pkg.add("CircularArrays")
 Pkg.add("OffsetArrays")
@@ -23,20 +22,22 @@ using CxxWrap
 using JLD
 using ImageIO
 using Plots
-using PyPlot
+#using PyPlot
 using Images
-using StaticArrays
+#using StaticArrays
 using CircularArrays
 #using TensorCast
 #using Tullio
-using DiffEqOperators
-using BandedMatrices
-using CosmicStrings
+#using DiffEqOperators
+#using BandedMatrices
+
+x = randn(1024,1024);
+y = randn(1024,1024);
+@time x = x.+y;
+@time x.= x.+y;
 
 
-
-
-n = 8;
+n = 5;
 Δx = 1.0;
 Δt = 0.1;
 η = 1.0;
@@ -44,117 +45,65 @@ n = 8;
 N = 2^n;
 t = 0.5N*Δx/Δt;
 
-Ċ₁ = zeros(N,N);
-Ċ₂ = zeros(N,N);
+Ȧ₁ = zeros(N,N);
+Ȧ₂ = zeros(N,N);
 
 μ,σ = 0, 0.1;
 C₁ = rand(Normal(μ,σ),N,N);
 C₂ = rand(Normal(μ,σ),N,N);
+D₁ = C₁;
+D₂ = C₂;
+P = zeros(N,N);
 
 t₀ = 0.1 ;
 t₂ = t/2 ;
 t₅ = t/5 ;
 t₁₀ = t/10 ;
 t₂₀ = t/20 ;
-P = zeros(N,N);
+t₅₀ = t/50 ;
 
 
-@time begin
-    saving_circle(N, t₀, t₂₀,C₁,C₂,Ċ₁,Ċ₂, ω, η, Δx, Δt)
-end
-
-@time begin
-    saving_laplace!(N, 0.1, t₂₀,C₁,C₂,Ċ₁,Ċ₂, ω, η, Δx, Δt)
-end
+@time saving_circle(N, t₀, t₂₀, C₁, C₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt)
+Ȧ₁ = zeros(N,N);
+Ȧ₂ = zeros(N,N);
 
 
-
-
-@time Laplacian_3D(N,A₁,Δx,P)
-
-@time Laplacian_7D!(P,A₁,Δx)
-
-@time begin
-A₁ = rand(Normal(μ,σ),N,N);
-A₂ = rand(Normal(μ,σ),N,N);
-A₁,A₂ = saving_circle(N, t₀, t₂₀, A₁, A₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt) ;
-end
-
-@time begin
-    A₁ = rand(Normal(μ,σ),N,N,N);
-    A₂ = rand(Normal(μ,σ),N,N,N);
-    A₁,A₂ = saving_3D(N, t₀, 1, A₁, A₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt) ;
-end
-
-
-
-@time begin
-
-A₁ = rand(Normal(μ,σ),N,N);
-A₂ = rand(Normal(μ,σ),N,N);
-A₁,A₂ = saving(N, t₀, t₂₀, A₁, A₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt) ;
-
-end
-
-@time begin
-n = 8;
-Δx = 1.0;
-Δt = 0.1;
-η = 1.0;
-ω = 5.0;
-N = 2^n;
-t = 0.5N*Δx/Δt;
-t₂₀ = t/20;
+@time saving_laplace!(N, t₀, t₂₀, D₁, D₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt)
 
 Ȧ₁ = zeros(N,N);
 Ȧ₂ = zeros(N,N);
 
-A₁ = rand(Normal(μ,σ),N,N);
-A₂ = rand(Normal(μ,σ),N,N);
-A₁,A₂ = saving_laplace!(N, t₀, t₂₀, A₁, A₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt) ;
-    
-end
+@time plotting_2D!(N, t₀, t₂₀, D₁, D₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt)
 
-@time begin
-n = 9;
+
+
+
+n = 7;
 Δx = 1.0;
 Δt = 0.1;
 η = 1.0;
 ω = 5.0;
 N = 2^n;
 t = 0.5N*Δx/Δt;
-t₂₀ = t/20;
 
-Ȧ₁ = zeros(N,N);-
-Ȧ₂ = zeros(N,N);
+Ȧ₁ = zeros(N,N,N);
+Ȧ₂ = zeros(N,N,N);
 
-A₁ = rand(Normal(μ,σ),N,N);
-A₂ = rand(Normal(μ,σ),N,N);
-saving_circle(N, t₀, t₂₀, A₁, A₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt) ;
+μ,σ = 0, 0.1;
+C₁ = rand(Normal(μ,σ),N,N,N);
+C₂ = rand(Normal(μ,σ),N,N,N);
+P = zeros(N,N,N);
 
-end
+t₀ = 0.1 ;
+t₂ = t/2 ;
+t₅ = t/5 ;
+t₁₀ = t/10 ;
+t₂₀ = t/20 ;
+t₅₀ = t/50 ;
 
+@time plotting_slow3D(N, t₀, t₅, C₁, C₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt)
 
+Ȧ₁ = zeros(N,N,N);
+Ȧ₂ = zeros(N,N,N);
 
-@time begin
-for i = 1:10
-    A₁ = rand(Normal(μ,σ),N,N);
-    A₂ = rand(Normal(μ,σ),N,N);
-    A₁,A₂ = saving_roll(N, t₀, t₁₀, A₁, A₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt) ;
-end
-end
-    
-@time begin
-    for i = 1:10
-        A₁ = rand(Normal(μ,σ),N,N);
-        A₂ = rand(Normal(μ,σ),N,N);
-        A₁,A₂ = saving_function(N, t₀, t₁₀, A₁, A₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt) ;
-    end
-    end
-
-
-
-
-@time begin
-    Laplacian(10,zeros(10,10),1.0)
-end
+@time plotting_3D!(N, t₀, t₅, C₁, C₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt)
