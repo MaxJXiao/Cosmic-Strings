@@ -150,7 +150,7 @@ function Laplacian_2D!(P,A,Δx)
     return nothing
 end
 
-function update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
+function update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
     a = 4.36000000000006e-18*time - 6.78288102293483e-23
     a₁ = 4.36000000000006e-18*(time + Δt) - 6.78288102293483e-23
 
@@ -159,8 +159,8 @@ function update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
     © = 1
     λ = 2π^2/ω^2
 
-    F₁ = M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
-    F₂ = M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
+    F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
+    F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
     A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
     A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
@@ -181,18 +181,21 @@ function plotting_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
     M₁ = zeros(N,N)
     M₂ = zeros(N,N)
 
+    F₁ = zeros(N,N);
+    F₂ = zeros(N,N);
+
     Laplacian_2D!(M₁,A₁,Δx)
     Laplacian_2D!(M₂,A₂,Δx)
 
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
-        if time % 1 == 0
-            mod = sqrt.(A₁.^2 .+ A₂.^2);
-            mod[mod .> 1] .= 1;
-            save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,mod));
+        # if time % 1 == 0
+        #     mod = sqrt.(A₁.^2 .+ A₂.^2);
+        #     mod[mod .> 1] .= 1;
+        #     save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,mod));
 
-        end
-        update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
+        # end
+        update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
         time = time + Δt
 
     end
@@ -220,7 +223,7 @@ function Laplacian_3D!(P,B,Δx)
     return nothing
 end
 
-function update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
+function update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
     a = 4.36000000000006e-18*time - 6.78288102293483e-23
     a₁ = 4.36000000000006e-18*(time + Δt) - 6.78288102293483e-23
 
@@ -229,8 +232,8 @@ function update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
     © = 1
     λ = 2π^2/ω^2
 
-    F₁ = M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
-    F₂ = M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
+    F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
+    F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
     A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
     A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
@@ -251,12 +254,15 @@ function plotting_3D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
     M₁ = zeros(N,N,N)
     M₂ = zeros(N,N,N)
 
+    F₁ = zeros(N,N,N);
+    F₂ = zeros(N,N,N);
+
     Laplacian_3D!(M₁,A₁,Δx)
     Laplacian_3D!(M₂,A₂,Δx)
 
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
-        update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
+        update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
         time = time + Δt
     end
 
