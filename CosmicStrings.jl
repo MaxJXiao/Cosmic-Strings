@@ -1,151 +1,45 @@
-function Laplacian_circle(😄,A,Δx)
-    B = CircularArray(A);
-    for i ∈ 1: 😄
-        for j ∈ 1: 😄
-            @fastmath P[i,j] = (-B[i+2,j] + 16B[i+1,j] 
-                + 16B[i-1,j] -B[i-2,j] 
-                -B[i,j+2] + 16B[i,j+1] 
-                + 16B[i,j-1] -B[i,j-2] 
-                - 60A[i,j]) /(12Δx^2);
-        end
-    end
-    return P
-end
-
-function Laplacian_circle!(P,A,Δx)
-    B = CircularArray(A);
-    for 😄 ∈ CartesianIndices(P)
+function Laplacian_2D!(P₁,P₂,A₁,A₂,Δx)
+    B₁ = CircularArray(A₁);
+    B₂ = CircularArray(A₂);
+    Threads.@threads for 😄 ∈ CartesianIndices(P₁)
         (i,j) = Tuple(😄)
-        @fastmath P[i,j] = (-B[i+2,j] + 16B[i+1,j] 
-            + 16B[i-1,j] -B[i-2,j] 
-            -B[i,j+2] + 16B[i,j+1] 
-            + 16B[i,j-1] -B[i,j-2] 
-            - 60A[i,j]) /(12Δx^2);
+        P₁[i,j] = @fastmath (-B₁[i+2,j] + 16B₁[i+1,j] 
+            + 16B₁[i-1,j] -B₁[i-2,j] 
+            -B₁[i,j+2] + 16B₁[i,j+1] 
+            + 16B₁[i,j-1] -B₁[i,j-2] 
+            - 60B₁[i,j]) /(12Δx^2);
+        P₂[i,j] = @fastmath (-B₂[i+2,j] + 16B₂[i+1,j] 
+            + 16B₂[i-1,j] -B₂[i-2,j] 
+            -B₂[i,j+2] + 16B₂[i,j+1] 
+            + 16B₂[i,j-1] -B₂[i,j-2] 
+            - 60B₂[i,j]) /(12Δx^2);  
     end
     return nothing
 end
 
-
-function update_4(N,A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
-    a(t) = 4.36000000000006e-18*t - 6.78288102293483e-23
-
-    β = 0
-    α = 3
-    © = 1
-    λ = 2π^2/ω^2
-
-    F₁ = M₁ .- α * © .* Ȧ₁ ./ time
-    F₂ = M₂ .- α * © .* Ȧ₂ ./ time
-    
-    lime = time + Δt
-
-    B₁ = A₁ .+ Δt * (Ȧ₁ .+ 0.5Δt * F₁)
-    B₂ = A₂ .+ Δt * (Ȧ₂ .+ 0.5Δt * F₂)
-
-    L₁ = Laplacian_circle(N,B₁,Δx) .- a(lime).^β * λ .* B₁ .* (B₁.^2 .+ B₂.^2 .- η^2)
-    L₂ = Laplacian_circle(N,B₂,Δx) .- a(lime).^β * λ .* B₂ .* (B₁.^2 .+ B₂.^2 .- η^2)
-
-    Ḃ₁ = Ȧ₁ .+ 0.5Δt .* (F₁ .+ L₁ .- α * © .* Ȧ₁ ./ lime)
-    Ḃ₂ = Ȧ₂ .+ 0.5Δt .* (F₂ .+ L₂ .- α * © .* Ȧ₂ ./ lime)
-    
-    return B₁,B₂,Ḃ₁,Ḃ₂,L₁,L₂,lime
-
-end
-
-
-function update_7!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
-    a(t) = 4.36000000000006e-18*t - 6.78288102293483e-23
-
-    β = 0
-    α = 3
-    © = 1
-    λ = 2π^2/ω^2
-
-    F₁ = M₁ .- a(time).^β * λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η^2) .- α * © .* Ȧ₁ ./ time
-    F₂ = M₂ .- a(time).^β * λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η^2) .- α * © .* Ȧ₂ ./ time
-
-    B₁ = A₁ .+ Δt * (Ȧ₁ .+ 0.5Δt * F₁)
-    B₂ = A₂ .+ Δt * (Ȧ₂ .+ 0.5Δt * F₂)
-
-    lime = time + Δt
-
-    Laplacian_circle!(M₁,B₁,Δx)
-    Laplacian_circle!(M₂,B₂,Δx)
-
-    Ḃ₁ = Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a(lime).^β * λ .* B₁ .* (B₁.^2 .+ B₂.^2 .- η^2) .- α * © .* Ȧ₁ ./ lime)
-    Ḃ₂ = Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a(lime).^β * λ .* B₂ .* (B₁.^2 .+ B₂.^2 .- η^2) .- α * © .* Ȧ₂ ./ lime)
-
-
-    return B₁,B₂,Ḃ₁,Ḃ₂,lime
-
-end
-
-
-
-function saving_circle(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
-    time = t₀;
-    time = round(time,digits = 1)
-
-    a(t) = 4.36000000000006e-18*t - 6.78288102293483e-23
-
-    β = 0
-
-    λ = 2π^2/ω^2
-    
-    steps = round(t/Δt,digits = 0);
-    M₁ = Laplacian_circle(N,A₁,Δx) .- a(time).^β * λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η^2)
-    M₂ = Laplacian_circle(N,A₂,Δx) .- a(time).^β * λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η^2)
-
-
-    for _ ∈ 1:steps
-        time = round(time,digits = 1);
-        if time % 1 == 0
-            mod = sqrt.(A₁.^2 .+ A₂.^2);
-            mod[mod .> 1] .= 1;
-            save("plottting/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,mod));
-
-        end
-        A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,time = update_4(N, A₁, A₂, Ȧ₁, Ȧ₂,M₁,M₂, ω, η, Δx, Δt, time);
-    end
-
-    
-    return A₁,A₂
-
-end
-
-function saving_laplace!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
-    time = t₀;
-    
-    steps = round(t/Δt,digits = 0);
-
-    M₁ = zeros(N,N)
-    M₂ = zeros(N,N)
-
-    Laplacian_circle!(M₁,A₁,Δx) 
-    Laplacian_circle!(M₂,A₂,Δx)
-
-    for _ ∈ 1:steps
-        time = round(time,digits = 1);
-        if time % 1 == 0
-            mod = sqrt.(A₁.^2 .+ A₂.^2);
-            mod[mod .> 1] .= 1;
-            save("plotting/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,mod));
-
-        end
-        A₁,A₂,Ȧ₁,Ȧ₂,time = update_7!(A₁, A₂, Ȧ₁, Ȧ₂, M₁, M₂, ω, η, Δx, Δt, time);
+function fupdate_2D!(F₁,F₂,M₁,M₂,a,©,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,time,β,α,λ)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
+        (i,j) = Tuple(😄)
+        F₁[i,j] = @fastmath M₁[i,j] - a^β * λ * C₁[i,j] *(A₁[i,j]^2 .+ A₂[i,j]^2 .- η^2) - α * © * Ȧ₁[i,j] /time;
+        F₂[i,j] = @fastmath M₂[i,j] - a^β * λ * C₂[i,j] *(A₁[i,j]^2 .+ A₂[i,j]^2 .- η^2) - α * © * Ȧ₂[i,j] /time;
     end
     return nothing
 end
 
-function Laplacian_2D!(P,A,Δx)
-    B = CircularArray(A);
-    for 😄 ∈ CartesianIndices(P)
+function Aupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(A₁)
         (i,j) = Tuple(😄)
-        @fastmath P[i,j] = (-B[i+2,j] + 16B[i+1,j] 
-            + 16B[i-1,j] -B[i-2,j] 
-            -B[i,j+2] + 16B[i,j+1] 
-            + 16B[i,j-1] -B[i,j-2] 
-            - 60A[i,j]) /(12Δx^2);
+        A₁[i,j] = @fastmath A₁[i,j] .+ Δt .* (Ȧ₁[i,j] .+ 0.5Δt .* F₁[i,j])
+        A₂[i,j] = @fastmath A₂[i,j] .+ Δt .* (Ȧ₂[i,j] .+ 0.5Δt .* F₂[i,j])
+    end
+    return nothing
+end
+
+function velupdate_2D!(Ȧ₁,Ȧ₂,Δt,a,©,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,time,β,α,λ)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ₁)
+        (i,j) = Tuple(😄)
+        Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] .- a.^β .* λ .* C₁[i,j] .* (A₁[i,j].^2 .+ A₂[i,j].^2 .- η.^2) .- α .* © .* Ȧ₁[i,j] ./ time)
+        Ȧ₂[i,j] = @fastmath Ȧ₂[i,j] .+ 0.5Δt .* (F₂[i,j] .+ M₂[i,j] .- a.^β .* λ .* C₂[i,j] .* (A₁[i,j].^2 .+ A₂[i,j].^2 .- η.^2) .- α .* © .* Ȧ₂[i,j] ./ time)
     end
     return nothing
 end
@@ -159,18 +53,48 @@ function update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,ti
     © = 1
     λ = 2π^2/ω^2
 
-    F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
-    F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
+    #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
+    #F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
-    A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
-    A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
+    fupdate_2D!(F₁,F₂,M₁,M₂,a,©,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,η,time,β,α,λ)
 
-    Laplacian_2D!(M₁,A₁,Δx)
-    Laplacian_2D!(M₂,A₂,Δx)
+    #A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
+    #A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
 
-    Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
-    Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
+    Aupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
 
+    Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
+
+    #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
+    #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
+
+    velupdate_2D!(Ȧ₁, Ȧ₂, Δt, a₁, ©, F₁, F₂, M₁, M₂, A₁, A₂, A₁, A₂, η, time + Δt, β, α, λ)
+
+    return nothing
+end
+
+function setting!(moo)
+    @inbounds Threads.@threads for t in eachindex(moo)
+        if moo[t] > 1
+            moo[t] = 1
+        end
+    end
+    return nothing
+end
+
+function mooing!(moo,A₁,A₂)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(moo)
+        (i,j) = Tuple(😄)
+        @fastmath moo[i,j] = sqrt(A₁[i,j]^2 + A₂[i,j]^2)
+    end
+    return nothing
+end
+
+function angler!(angle,A₁,A₂)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(angle)
+        (i,j) = Tuple(😄)
+        angle[i,j] = @fastmath atan(A₂[i,j],A₁[i,j]);
+    end
     return nothing
 end
 
@@ -178,22 +102,26 @@ function plotting_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
 
     time = t₀
 
-    M₁ = zeros(N,N)
-    M₂ = zeros(N,N)
+    M₁ = zeros(N,N);
+    M₂ = zeros(N,N);
 
     F₁ = zeros(N,N);
     F₂ = zeros(N,N);
 
-    Laplacian_2D!(M₁,A₁,Δx)
-    Laplacian_2D!(M₂,A₂,Δx)
+    Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
+
+    # moo = zeros(N,N);
+    # angle = zeros(N,N);
 
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
         # if time % 1 == 0
-        #     mod = sqrt.(A₁.^2 .+ A₂.^2);
-        #     mod[mod .> 1] .= 1;
-        #     save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,mod));
-
+        #     mooing!(moo,A₁,A₂);
+        #     setting!(moo);
+        #     angler!(angle,A₁,A₂);
+        #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
+        #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
+        #     PyPlot.imsave("plottting_angle/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
         # end
         update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
         time = time + Δt
@@ -206,22 +134,61 @@ end
 
 
 
-function Laplacian_3D!(P,B,Δx)
-    A = CircularArray(B);
-    for 😄 ∈ CartesianIndices(P)
+function Laplacian_3D!(P₁,P₂,B₁,B₂,Δx)
+    A₁ = CircularArray(B₁);
+    A₂ = CircularArray(B₂);
+    Threads.@threads for 😄 ∈ CartesianIndices(P₁)
         (i,j,k) = Tuple(😄)
-        @fastmath P[i,j,k] = (A[i-1,j-1,k-1] + 3A[i-1,j,k-1] + A[i-1,j+1,k-1] 
-                + 3A[i-1,j-1,k] + 14A[i-1,j,k] + 3A[i-1,j+1,k] 
-                + A[i-1,j-1,k+1] + 3A[i-1,j,k+1] + A[i-1,j+1,k+1] 
-                + 3A[i,j-1,k-1] + 14A[i,j,k-1] + 3A[i,j+1,k-1] 
-                + 14A[i,j-1,k] - 128A[i,j,k] + 14A[i,j+1,k] 
-                + 3A[i,j-1,k+1] + 14A[i,j,k+1] + 3A[i,j+1,k+1] 
-                + A[i+1,j-1,k-1] + 3A[i+1,j,k-1] + A[i+1,j+1,k-1] 
-                + 3A[i+1,j-1,k] + 14A[i+1,j,k] + 3A[i+1,j+1,k] 
-                + A[i+1,j-1,k+1] + 3A[i+1,j,k+1] + A[i+1,j+1,k+1])/(30Δx^2)
+        P₁[i,j,k] = @fastmath (A₁[i-1,j-1,k-1] + 3A₁[i-1,j,k-1] + A₁[i-1,j+1,k-1] 
+                + 3A₁[i-1,j-1,k] + 14A₁[i-1,j,k] + 3A₁[i-1,j+1,k] 
+                + A₁[i-1,j-1,k+1] + 3A₁[i-1,j,k+1] + A₁[i-1,j+1,k+1] 
+                + 3A₁[i,j-1,k-1] + 14A₁[i,j,k-1] + 3A₁[i,j+1,k-1] 
+                + 14A₁[i,j-1,k] - 128A₁[i,j,k] + 14A₁[i,j+1,k] 
+                + 3A₁[i,j-1,k+1] + 14A₁[i,j,k+1] + 3A₁[i,j+1,k+1] 
+                + A₁[i+1,j-1,k-1] + 3A₁[i+1,j,k-1] + A₁[i+1,j+1,k-1] 
+                + 3A₁[i+1,j-1,k] + 14A₁[i+1,j,k] + 3A₁[i+1,j+1,k] 
+                + A₁[i+1,j-1,k+1] + 3A₁[i+1,j,k+1] + A₁[i+1,j+1,k+1])/(30Δx^2);
+        P₂[i,j,k] = @fastmath (A₂[i-1,j-1,k-1] + 3A₂[i-1,j,k-1] + A₂[i-1,j+1,k-1] 
+                + 3A₂[i-1,j-1,k] + 14A₂[i-1,j,k] + 3A₂[i-1,j+1,k] 
+                + A₂[i-1,j-1,k+1] + 3A₂[i-1,j,k+1] + A₂[i-1,j+1,k+1] 
+                + 3A₂[i,j-1,k-1] + 14A₂[i,j,k-1] + 3A₂[i,j+1,k-1] 
+                + 14A₂[i,j-1,k] - 128A₂[i,j,k] + 14A₂[i,j+1,k] 
+                + 3A₂[i,j-1,k+1] + 14A₂[i,j,k+1] + 3A₂[i,j+1,k+1] 
+                + A₂[i+1,j-1,k-1] + 3A₂[i+1,j,k-1] + A₂[i+1,j+1,k-1] 
+                + 3A₂[i+1,j-1,k] + 14A₂[i+1,j,k] + 3A₂[i+1,j+1,k] 
+                + A₂[i+1,j-1,k+1] + 3A₂[i+1,j,k+1] + A₂[i+1,j+1,k+1])/(30Δx^2);
     end
     return nothing
 end
+
+
+function fupdate_3D!(F₁,F₂,M₁,M₂,a,©,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,time,β,α,λ)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
+        (i,j,k) = Tuple(😄)
+        F₁[i,j,k] = @fastmath M₁[i,j,k] - a^β * λ * C₁[i,j,k] *(A₁[i,j,k]^2 .+ A₂[i,j,k]^2 .- η^2) - α * © * Ȧ₁[i,j,k] /time;
+        F₂[i,j,k] = @fastmath M₂[i,j,k] - a^β * λ * C₂[i,j,k] *(A₁[i,j,k]^2 .+ A₂[i,j,k]^2 .- η^2) - α * © * Ȧ₂[i,j,k] /time;
+    end
+    return nothing
+end
+
+function Aupdate_3D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(A₁)
+        (i,j,k) = Tuple(😄)
+        A₁[i,j,k] = @fastmath A₁[i,j,k] .+ Δt .* (Ȧ₁[i,j,k] .+ 0.5Δt .* F₁[i,j,k])
+        A₂[i,j,k] = @fastmath A₂[i,j,k] .+ Δt .* (Ȧ₂[i,j,k] .+ 0.5Δt .* F₂[i,j,k])
+    end
+    return nothing
+end
+
+function velupdate_3D!(Ȧ₁,Ȧ₂,Δt,a,©,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,time,β,α,λ)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ₁)
+        (i,j,k) = Tuple(😄)
+        Ȧ₁[i,j,k] = @fastmath Ȧ₁[i,j,k] .+ 0.5Δt .* (F₁[i,j,k] .+ M₁[i,j,k] .- a.^β .* λ .* C₁[i,j,k] .* (A₁[i,j,k].^2 .+ A₂[i,j,k].^2 .- η.^2) .- α .* © .* Ȧ₁[i,j,k] ./ time)
+        Ȧ₂[i,j,k] = @fastmath Ȧ₂[i,j,k] .+ 0.5Δt .* (F₂[i,j,k] .+ M₂[i,j,k] .- a.^β .* λ .* C₂[i,j,k] .* (A₁[i,j,k].^2 .+ A₂[i,j,k].^2 .- η.^2) .- α .* © .* Ȧ₂[i,j,k] ./ time)
+    end
+    return nothing
+end
+
 
 function update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
     a = 4.36000000000006e-18*time - 6.78288102293483e-23
@@ -232,17 +199,22 @@ function update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,ti
     © = 1
     λ = 2π^2/ω^2
 
-    F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
-    F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
+    #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
+    #F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
-    A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
-    A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
+    fupdate_3D!(F₁,F₂,M₁,M₂,a,©,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,η,time,β,α,λ)
 
-    Laplacian_3D!(M₁,A₁,Δx)
-    Laplacian_3D!(M₂,A₂,Δx)
+    #A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
+    #A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
 
-    Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
-    Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
+    Aupdate_3D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
+
+    Laplacian_3D!(M₁,M₂,A₁,A₂,Δx)
+
+    #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
+    #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
+
+    velupdate_3D!(Ȧ₁, Ȧ₂, Δt, a₁, ©, F₁, F₂, M₁, M₂, A₁, A₂, A₁, A₂, η, time + Δt, β, α, λ)
 
     return nothing
 end
@@ -257,11 +229,19 @@ function plotting_3D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
     F₁ = zeros(N,N,N);
     F₂ = zeros(N,N,N);
 
-    Laplacian_3D!(M₁,A₁,Δx)
-    Laplacian_3D!(M₂,A₂,Δx)
+    Laplacian_3D!(M₁,M₂,A₁,A₂,Δx)
+
+    #moo = zeros(N,N,N);
 
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
+ 
+        # if time % 5 == 0
+        #     mooing(moo,A₁,A₂)
+        #     mood = Tuple.(findall(<(0.5),moo));
+        #     p = plot(mood,seriestype = :scatter,xlims = (0,N),ylims = (0,N),zlims = (0,N))
+        #     display(p)
+        # end
         update_3D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
         time = time + Δt
     end
@@ -270,75 +250,3 @@ function plotting_3D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
 end
 
 
-
-function Laplacian_slow3D(😄,B,Δx)
-    A = CircularArray(B);
-    for i ∈ 1:😄
-        for j ∈ 1:😄
-            for k ∈ 1:😄
-                @fastmath P[i,j,k] = (A[i-1,j-1,k-1] + 3A[i-1,j,k-1] + A[i-1,j+1,k-1] 
-                + 3A[i-1,j-1,k] + 14A[i-1,j,k] + 3A[i-1,j+1,k] 
-                + A[i-1,j-1,k+1] + 3A[i-1,j,k+1] + A[i-1,j+1,k+1] 
-                + 3A[i,j-1,k-1] + 14A[i,j,k-1] + 3A[i,j+1,k-1] 
-                + 14A[i,j-1,k] - 128A[i,j,k] + 14A[i,j+1,k] 
-                + 3A[i,j-1,k+1] + 14A[i,j,k+1] + 3A[i,j+1,k+1] 
-                + A[i+1,j-1,k-1] + 3A[i+1,j,k-1] + A[i+1,j+1,k-1] 
-                + 3A[i+1,j-1,k] + 14A[i+1,j,k] + 3A[i+1,j+1,k] 
-                + A[i+1,j-1,k+1] + 3A[i+1,j,k+1] + A[i+1,j+1,k+1])/(30Δx^2)
-            end
-        end
-    end
-    return P
-end
-
-
-function update_slow3D(N,A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
-    a(t) = 4.36000000000006e-18*t - 6.78288102293483e-23
-
-    β = 0
-    α = 3
-    © = 1
-    λ = 2π^2/ω^2
-
-    F₁ = M₁ .- α * © .* Ȧ₁ ./ time
-    F₂ = M₂ .- α * © .* Ȧ₂ ./ time
-    
-    lime = time + Δt
-
-    B₁ = A₁ .+ Δt * (Ȧ₁ .+ 0.5Δt * F₁)
-    B₂ = A₂ .+ Δt * (Ȧ₂ .+ 0.5Δt * F₂)
-
-    L₁ = Laplacian_slow3D(N,B₁,Δx) .- a(lime).^β * λ .* B₁ .* (B₁.^2 .+ B₂.^2 .- η^2)
-    L₂ = Laplacian_slow3D(N,B₂,Δx) .- a(lime).^β * λ .* B₂ .* (B₁.^2 .+ B₂.^2 .- η^2)
-
-    Ḃ₁ = Ȧ₁ .+ 0.5Δt .* (F₁ .+ L₁ .- α * © .* Ȧ₁ ./ lime)
-    Ḃ₂ = Ȧ₂ .+ 0.5Δt .* (F₂ .+ L₂ .- α * © .* Ȧ₂ ./ lime)
-    
-    return B₁,B₂,Ḃ₁,Ḃ₂,L₁,L₂,lime
-
-end
-
-
-function plotting_slow3D(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
-    time = t₀;
-    time = round(time,digits = 1)
-
-    a(t) = 4.36000000000006e-18*t - 6.78288102293483e-23
-
-    β = 0
-
-    λ = 2π^2/ω^2
-
-    M₁ = Laplacian_slow3D(N,A₁,Δx) .- a(time).^β * λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η^2)
-    M₂ = Laplacian_slow3D(N,A₂,Δx) .- a(time).^β * λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η^2)
-
-
-    for _ ∈ 1:round(t/Δt,digits = 0)
-        time = round(time,digits = 1);
-        A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,time = update_slow3D(N,A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,ω,η,Δx,Δt,time)
-    end
-
-    
-    return A₁,A₂
-
-end
