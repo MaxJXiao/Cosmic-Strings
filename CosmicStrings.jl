@@ -26,6 +26,18 @@ function fupdate_2D!(F₁,F₂,M₁,M₂,a,©,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,
     return nothing
 end
 
+function fupdate_mass2D!(F₁,F₂,M₁,M₂,a,©,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,time,β,α,λ,mass,angle)
+    T = 100/(1e6);
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
+        (i,j) = Tuple(😄)
+        F₁[i,j] = @fastmath M₁[i,j] - a^β * λ * C₁[i,j] *(A₁[i,j]^2 .+ A₂[i,j]^2 .- η^2) - λ*T^2/3 * C₁[i,j] - α * © * Ȧ₁[i,j] /time
+        + mass*η^2 * sin(angle[i,j])* C₂[i,j]/ (A₁[i,j]^2 .+ A₂[i,j]^2);
+        F₂[i,j] = @fastmath M₂[i,j] - a^β * λ * C₂[i,j] *(A₁[i,j]^2 .+ A₂[i,j]^2 .- η^2) - λ*T^2/3 * C₂[i,j] - α * © * Ȧ₂[i,j] /time
+        - mass * η^2 * sin(angle[i,j]) * C₁[i,j]/ (A₁[i,j]^2 .+ A₂[i,j]^2);
+    end
+    return nothing
+end
+
 function Aupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(A₁)
         (i,j) = Tuple(😄)
@@ -40,6 +52,18 @@ function velupdate_2D!(Ȧ₁,Ȧ₂,Δt,a,©,F₁,F₂,M₁,M₂,C₁,C₂,A₁
         (i,j) = Tuple(😄)
         Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] .- a.^β .* λ .* C₁[i,j] .* (A₁[i,j].^2 .+ A₂[i,j].^2 .- η.^2) .- α .* © .* Ȧ₁[i,j] ./ time)
         Ȧ₂[i,j] = @fastmath Ȧ₂[i,j] .+ 0.5Δt .* (F₂[i,j] .+ M₂[i,j] .- a.^β .* λ .* C₂[i,j] .* (A₁[i,j].^2 .+ A₂[i,j].^2 .- η.^2) .- α .* © .* Ȧ₂[i,j] ./ time)
+    end
+    return nothing
+end
+
+function velupdate_mass2D!(Ȧ₁,Ȧ₂,Δt,a,©,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,time,β,α,λ,mass,angle)
+    T = 100/(1e6);
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ₁)
+        (i,j) = Tuple(😄)
+        Ȧ₁[i,j] = Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] - a^β * λ * C₁[i,j] *(A₁[i,j]^2 .+ A₂[i,j]^2 .- η^2) - λ*T^2/3 * C₁[i,j] - α * © * Ȧ₁[i,j] /time
+        + mass*η^2 * sin(angle[i,j])* C₂[i,j]/ (A₁[i,j]^2 .+ A₂[i,j]^2) );
+        Ȧ₂[i,j] = Ȧ₂[i,j] .+ 0.5Δt .* (F₂[i,j] .+ M₂[i,j] - a^β * λ * C₂[i,j] *(A₁[i,j]^2 .+ A₂[i,j]^2 .- η^2) - λ*T^2/3 * C₂[i,j] - α * © * Ȧ₂[i,j] /time
+        - mass * η^2 * sin(angle[i,j]) * C₁[i,j]/ (A₁[i,j]^2 .+ A₂[i,j]^2) );
     end
     return nothing
 end
@@ -73,6 +97,29 @@ function update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,ti
     return nothing
 end
 
+function update_mass2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time,mass,angle)
+    a = 4.36000000000006e-18*time - 6.78288102293483e-23
+    a₁ = 4.36000000000006e-18*(time + Δt) - 6.78288102293483e-23
+
+    β = 0
+    α = 3
+    © = 1
+    λ = 2π^2/ω^2
+
+    fupdate_mass2D!(F₁,F₂,M₁,M₂,a,©,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,η,time,β,α,λ,mass,angle)
+
+
+    Aupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
+
+    Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
+
+    angler!(angle,A₁,A₂)
+
+    velupdate_mass2D!(Ȧ₁, Ȧ₂, Δt, a₁, ©, F₁, F₂, M₁, M₂, A₁, A₂, A₁, A₂, η, time + Δt, β, α, λ,mass,angle)
+
+    return nothing
+end
+
 function setting!(moo)
     @inbounds Threads.@threads for t in eachindex(moo)
         if moo[t] > 1
@@ -98,9 +145,59 @@ function angler!(angle,A₁,A₂)
     return nothing
 end
 
-function plotting_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
+function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
 
     time = t₀
+
+    M₁ = zeros(N,N);
+    M₂ = zeros(N,N);
+
+    F₁ = zeros(N,N);
+    F₂ = zeros(N,N);
+
+
+    Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
+
+    angle = zeros(N,N);
+    for _ ∈ 1:round(t/Δt,digits = 0)
+        time = round(time,digits = 1);
+        if time % 1 == 0
+            #     mooing!(moo,A₁,A₂);
+            #     setting!(moo);
+                 angler!(angle,A₁,A₂);
+            #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
+            #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
+                 PyPlot.imsave("plottting_angle/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+            end
+        update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
+        time = time + Δt
+
+    end
+
+    return time
+end
+
+function mass(η)
+    n = 6.68;
+    Λ = 400;
+    αₐ = 1.68e-7;
+    T = 100/(1e6);
+    mᵤ = 1.7/(1e6); #1.7 - 3.3MeV
+    m₍d₎ = 4.1/(1e6); #4.1 - 5.8MeV
+    m₍π₎ = 135/(1e6);
+    η₍π₎ = 130/(1e6);
+
+    mass = αₐ * Λ^(4+n) / (η^2 * T^n)
+    mₐ = sqrt( m₍π₎^2 * η₍π₎^2 / η^2 * mᵤ * m₍d₎ / (mᵤ + m₍d₎)^2 )
+    if mass > mₐ
+        mass = mₐ
+    end
+    return mass
+end
+
+function plotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
+
+    time = t₁
 
     M₁ = zeros(N,N);
     M₂ = zeros(N,N);
@@ -111,19 +208,21 @@ function plotting_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
     Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
 
     # moo = zeros(N,N);
-    # angle = zeros(N,N);
+    mas = mass(η);
+    #mas = 1e-6;
+    angle = zeros(N,N);
+    angler!(angle,A₁,A₂);
 
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
-        # if time % 1 == 0
+        if time % 1 == 0
         #     mooing!(moo,A₁,A₂);
         #     setting!(moo);
-        #     angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-        #     PyPlot.imsave("plottting_angle/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
-        # end
-        update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
+             PyPlot.imsave("plottting_angle/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+        end
+        update_mass2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time,mas,angle)
         time = time + Δt
 
     end

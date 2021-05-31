@@ -41,24 +41,31 @@ using CircularArrays
 using CxxWrap
 #using CosmicStrings
 
-x = randn(1024,1024);
-y = randn(1024,1024);
-@time x = x.+y;
-@time x.= x.+y;
+x = randn(64,64,64);
+y = randn(512,512);
+@time x = x.+1;
+@time y= y.+1;
 
 
 n = 8;
 Δx = 1.0;
 Δt = 0.1;
-η = 1.0;
+η = 1;
 ω = 5.0;
 N = 2^n;
 t = 0.5N*Δx/Δt;
-t₀ = 0.1
+t₀ = 0.1 ;
+t₂ = t/2 ;
+t₅ = t/5 ;
+t₁₀ = t/10 ;
+t₂₀ = t/20 ;
+t₅₀ = t/50 ;
+
 
 for n ∈ 9:9
 
 @time begin
+t₀ = 0.1;
 N = 2^n;
 println(N)
 
@@ -71,12 +78,13 @@ C₂ = rand(Normal(μ,σ),N,N);
 
 
 
-plotting_2D!(N, t₀, 100, C₁, C₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt)
+t₁ = run_2D!(N, t₀, 50, C₁, C₂, Ȧ₁, Ȧ₂, ω, η, Δx, Δt)
+plotting_2D!(N,t₀,t₁,t₂,C₁,C₂,Ȧ₁,Ȧ₂, ω,η,Δx,Δt)
 
 end
 end
 
-for n ∈ 6:6
+for n ∈ 1:6
 
 @time begin
 
@@ -113,7 +121,7 @@ t = 0.5N*Δx/Δt;
 t₀ = 0.1 ;
 t₅ = t/5 ;
 
-for n ∈ 1:8
+for n ∈ 1:6
 
 @time begin
 
