@@ -62,6 +62,51 @@ t₂₀ = t/20 ;
 t₅₀ = t/50 ;
 
 
+
+for n ∈ 9:9
+
+@time begin
+t₀ = 10;
+N = 2^n;
+println(N)
+
+rₐ = range(14.5,stop = 23.5,length = 10);
+fₐ = 10 .^rₐ;
+
+for i ∈ 1:10
+    print(string(i)*" ")
+    println(fₐ[i])
+
+    Ȧ₁ = zeros(N,N);
+    Ȧ₂ = zeros(N,N);
+
+    μ,σ = 0, 0.1;
+    C₁ = rand(Normal(μ,σ),N,N);
+    C₂ = rand(Normal(μ,σ),N,N);
+
+
+
+    t₁ = PQrun_2D!(N, t₀, 200, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
+    #PQplotting_2D!(N,t₀,t₁,t₂₀,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i)
+
+end
+
+end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 for n ∈ 9:9
 
 @time begin
