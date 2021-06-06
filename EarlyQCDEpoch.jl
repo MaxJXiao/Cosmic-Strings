@@ -23,17 +23,18 @@ function Laplacian_2D!(P₁,P₂,A₁,A₂,Δx)
 end
 
 
-function PQfupdate_2D!(F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,fₐ)
+function EQCDfupdate_2D!(F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,fₐ,ηₓ)
+    n = 6.68;
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
         (i,j) = Tuple(😄)
-        F₁[i,j] = @fastmath M₁[i,j] - λ * C₁[i,j] * (η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + 8.4e5 * 1e12/(3fₐ)) - 2/η * Ȧ₁[i,j];
-        F₂[i,j] = @fastmath M₂[i,j] - λ * C₂[i,j] * (η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + 8.4e5 * 1e12/(3fₐ)) - 2/η * Ȧ₂[i,j];
+        F₁[i,j] = @fastmath M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + ηₓ^n *η^2 * C₂[i,j]^2/((A₁[i,j]^2 .+ A₂[i,j]^2)^1.5) - 2/η * Ȧ₁[i,j];
+        F₂[i,j] = @fastmath M₂[i,j] - λ * C₂[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) - ηₓ^n *η^2 * C₁[i,j]*C₂[i,j]/((A₁[i,j]^2 .+ A₂[i,j]^2)^1.5) - 2/η * Ȧ₂[i,j];
     end
     return nothing
 end
 
 
-function PQAupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
+function EQCDAupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(A₁)
         (i,j) = Tuple(😄)
         A₁[i,j] = @fastmath A₁[i,j] .+ Δt .* (Ȧ₁[i,j] .+ 0.5Δt .* F₁[i,j])
@@ -43,7 +44,7 @@ function PQAupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
 end
 
 
-function PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,λ,fₐ)
+function EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,λ,fₐ,ηₓ)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ₁)
         (i,j) = Tuple(😄)
         Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] - λ * C₁[i,j] * (η^2 .* (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + 8.4e5 * 1e12/(3fₐ)) - 2/η * Ȧ₁[i,j])
@@ -52,49 +53,71 @@ function PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A�
     return nothing
 end
 
-function mass(η)
+function mass(fₐ,T)
+    fₐ = fₐ*1e3
     n = 6.68;
     Λ = 400;
     αₐ = 1.68e-7;
-    T = 100/(1e6);
-    mᵤ = 1.7/(1e6); #1.7 - 3.3MeV
-    m₍d₎ = 4.1/(1e6); #4.1 - 5.8MeV
-    m₍π₎ = 135/(1e6);
-    f₍π₎ = 130/(1e6);
+    mᵤ = 1.7; #1.7 - 3.3MeV
+    m₍d₎ = 4.1; #4.1 - 5.8MeV
+    m₍π₎ = 135;
+    f₍π₎ = 130;
 
-    mass = αₐ * Λ^(4+n) / (η^2 * T^n)
-    mₐ = sqrt( m₍π₎^2 * f₍π₎^2 / η^2 * mᵤ * m₍d₎ / (mᵤ + m₍d₎)^2 )
+    mass = αₐ * Λ^(4+n) / (fₐ^2 * T^n)
+    mₐ = sqrt( m₍π₎^2 * f₍π₎^2 / fₐ^2 * mᵤ * m₍d₎ / (mᵤ + m₍d₎)^2 )
     if mass > mₐ
         mass = mₐ
     end
     return mass
 end
 
-function PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+function ηtime(time,fₐ,T)
+    n = 6.68
+    if T > 103
+        t₁ = 3.01e-7 * (fₐ/1e12)^(4/(4+n));
+    else
+        t₁ = 1.61e-10 * (fₐ/1e12)^(4/(4+n));
+    end
+    η = (time/t₁)^0.5;
 
-    λ = (fₐ/mass(T))
+    ηₓ = 2e3/1.15e2;
+
+    if ηₓ > η
+        ηₓ = η
+    end
+
+    return ηₓ,η
+end
+
+function EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+
+    λ = (fₐ/mass(fₐ,400))^2;
+    ηₓ,η = ηtime(time,fₐ,400);
+    
 
     #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
     #F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
-    PQfupdate_2D!(F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,(time/t₀)^0.5,λ,fₐ)
+    EQCDfupdate_2D!(F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,fₐ,ηₓ)
 
     #A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
     #A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
 
-    PQAupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
+    EQCDAupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
 
     Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
 
     #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
     #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
 
-    PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,((time + Δt)/t₀)^0.5,λ,fₐ)
+    ηₓ,η = ηtime(time+Δt,fₐ,400);
+
+    EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,η,λ,fₐ,ηₓ)
 
     return nothing
 end
 
-function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
+function EQCDrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
     time = t₀
 
@@ -116,9 +139,9 @@ function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
             angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-            PyPlot.imsave("plottting_angle/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+            PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
         end
-        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+        EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
         time = time + Δt
 
     end
@@ -126,7 +149,7 @@ function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
     return time
 end
 
-function PQplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
+function EQCDplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
     time = t₁
 
@@ -150,13 +173,12 @@ function PQplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
             angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-            PyPlot.imsave("plottting_angle/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+            PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
         end
-        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₁,time,fₐ)
+        EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₁,time,fₐ)
         time = time + Δt
 
     end
 
     return nothing
 end
-
