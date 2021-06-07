@@ -26,8 +26,8 @@ end
 function PQfupdate_2D!(F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,fₐ)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
         (i,j) = Tuple(😄)
-        F₁[i,j] = @fastmath M₁[i,j] - λ * C₁[i,j] * (η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + 8.4e5 * 1e12/(3fₐ)) - 2/η * Ȧ₁[i,j];
-        F₂[i,j] = @fastmath M₂[i,j] - λ * C₂[i,j] * (η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + 8.4e5 * 1e12/(3fₐ)) - 2/η * Ȧ₂[i,j];
+        F₁[i,j] = @fastmath M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₁[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₁[i,j];
+        F₂[i,j] = @fastmath M₂[i,j] - λ * C₂[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₂[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₂[i,j];
     end
     return nothing
 end
@@ -46,8 +46,8 @@ end
 function PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,λ,fₐ)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ₁)
         (i,j) = Tuple(😄)
-        Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] - λ * C₁[i,j] * (η^2 .* (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + 8.4e5 * 1e12/(3fₐ)) - 2/η * Ȧ₁[i,j])
-        Ȧ₂[i,j] = @fastmath Ȧ₂[i,j] .+ 0.5Δt .* (F₂[i,j] .+ M₂[i,j] - λ * C₂[i,j] * (η^2 .* (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + 8.4e5 * 1e12/(3fₐ)) - 2/η * Ȧ₂[i,j])
+        Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₁[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₁[i,j]);
+        Ȧ₂[i,j] = @fastmath Ȧ₂[i,j] .+ 0.5Δt .* (F₂[i,j] .+ M₂[i,j] - λ * C₂[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₂[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₂[i,j]);
     end
     return nothing
 end
@@ -88,16 +88,17 @@ function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
     Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
 
     angle = zeros(N,N);
+
     for _ ∈ 1:round(t/Δt,digits = 0)
-        time = round(time,digits = 1);
-        if time % 1 == 0
+        time = round(time,digits = 10);
+        #if time % 1 == 0
         #     mooing!(moo,A₁,A₂);
         #     setting!(moo);
-            angler!(angle,A₁,A₂);
+        angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-            PyPlot.imsave("PQEpoch/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
-        end
+        PyPlot.imsave("PQEpoch/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀)/Δt)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+        #end
         PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
         time = time + Δt
 
