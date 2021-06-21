@@ -54,15 +54,16 @@ function EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,
     return nothing
 end
 
-function mass(fₐ,T)
+function mass(fₐ)
     fₐ = fₐ*1e3
-    n = 6.68;
+    n = 1;
     Λ = 400;
     αₐ = 1.68e-7;
     mᵤ = 1.7; #1.7 - 3.3MeV
     m₍d₎ = 4.1; #4.1 - 5.8MeV
     m₍π₎ = 135;
     f₍π₎ = 130;
+    T = 0.981 * (fₐ/1e12)^(-2/(4 + n))
 
     mass = αₐ * Λ^(4+n) / (fₐ^2 * T^n)
     mₐ = sqrt( m₍π₎^2 * f₍π₎^2 / fₐ^2 * mᵤ * m₍d₎ / (mᵤ + m₍d₎)^2 )
@@ -72,7 +73,9 @@ function mass(fₐ,T)
     return mass
 end
 
-function ηtime(time,t₁,fₐ)
+function ηtime(time,fₐ)
+    b = 6.68
+    t₁ = 3.01e-7 * (fₐ/1e12)^(4/(4+b))
     n = 6.68
     η = (time/t₁)^0.5;
     T = 0.981e3 * (fₐ/1e12)^(-2/(4 + n))
@@ -86,12 +89,12 @@ function ηtime(time,t₁,fₐ)
     return ηₓ,η
 end
 
-function EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+function EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ)
 
-    λ = (fₐ/mass(fₐ,400))^2;
+    #λ = (fₐ/mass(fₐ))^2;
 
-    #λ = 1;
-    ηₓ,η = ηtime(time,t₀,fₐ);
+    λ = 50;
+    ηₓ,η = ηtime(time,fₐ);
     
 
     #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
@@ -109,7 +112,7 @@ function EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀
     #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
     #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
 
-    ηₓ,η = ηtime(time+Δt,t₀,fₐ);
+    ηₓ,η = ηtime(time+Δt,fₐ);
 
     EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,η,λ,ηₓ)
 
@@ -131,16 +134,16 @@ function EQCDrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
     angle = zeros(N,N);
     for _ ∈ 1:round(t/Δt,digits = 0)
-        #time = round(time,digits = 1);
-        #if time % 1 == 0
+        time = round(time,digits = 1);
+        if time % 1 == 0
         #     mooing!(moo,A₁,A₂);
         #     setting!(moo);
-        angler!(angle,A₁,A₂);
+            angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-        PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀)*1e10)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
-        #end
-        EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+            PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+        end
+        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
         time = time + Δt
 
     end
@@ -164,19 +167,19 @@ function EQCDplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
     angle = zeros(N,N);
     angler!(angle,A₁,A₂);
 
-    for _ ∈ 1:round(t/Δt,digits = 0)
-        time = round(time,digits = 1);
-        if time % 1 == 0
+    for lo ∈ 1:round(t/Δt,digits = 0)
+        time = round(time,digits = 10);
+        if lo % 10 == 0
         #     mooing!(moo,A₁,A₂);
         #     setting!(moo);
             angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-            PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+            PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
         end
-        EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₁,time,fₐ)
+        EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ)
         time = time + Δt
-
+        
     end
 
     return nothing

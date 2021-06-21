@@ -46,8 +46,8 @@ end
 
 
 
-function Lηtime(time,t₁,fₐ)
-
+function Lηtime(time,fₐ)
+    t₁ = 1.61e-10 * (fₐ/1e12)
     η = (time/t₁)^0.5
     T = 42.3e3 * (fₐ/1e12)^(-0.5)
 
@@ -60,9 +60,9 @@ function Lηtime(time,t₁,fₐ)
     return ηₓ,η
 end
 
-function Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,t₀,fₐ)
+function Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,fₐ)
 
-    ηₓ,η = Lηtime(time,t₀,fₐ);
+    ηₓ,η = Lηtime(time,fₐ);
     
 
     #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
@@ -80,7 +80,7 @@ function Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,t₀,fₐ)
     #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
     #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
 
-    ηₓ,η = Lηtime(time+Δt,t₀,fₐ)
+    ηₓ,η = Lηtime(time+Δt,fₐ)
 
     Lvelupdate_2D!(Ȧ,Δt,F,M,A,η,ηₓ)
 
@@ -104,14 +104,14 @@ function Lrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 10);
-        #if time % 1 == 0
+        if time % 1 == 0
         #     mooing!(moo,A₁,A₂);
         #     setting!(moo);
-        angler!(angle,A₁,A₂);
+            angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-        PyPlot.imsave("Late/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀)*1e10)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
-        #end
+            PyPlot.imsave("Late/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+        end
         PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
         time = time + Δt
 
@@ -132,16 +132,16 @@ function Lplotting_2D!(N,t₀,t₁,t,A,Ȧ,Δx,Δt,fₐ,i)
 
     # moo = zeros(N,N);
 
-    for _ ∈ 1:round(t/Δt,digits = 0)
+    for lo ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 10);
-        #if time % 1 == 0
+        if lo % 10 == 0
         #     mooing!(moo,A₁,A₂);
         #     setting!(moo);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-        PyPlot.imsave("Late/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀)*1e10)) ,3,"0")*".png",A,vmin=-π,vmax = π,cmap = "twilight")
-        #end
-        Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,t₀,fₐ)
+            PyPlot.imsave("Late/"*string(i)*"/"*lpad( string(trunc(Int,t₀+lo/10 - 1)) ,3,"0")*".png",A,vmin=-π,vmax = π,cmap = "twilight")
+        end
+        Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,fₐ)
         time = time + Δt
 
     end

@@ -74,6 +74,13 @@ function PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,t
     return nothing
 end
 
+function meshgrid(x, y)
+    X = [i for i in x, j in 1:length(y)]
+    Y = [j for i in 1:length(x), j in y]
+    return X, Y
+end
+
+
 function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
     time = t₀
@@ -84,21 +91,46 @@ function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
     F₁ = zeros(N,N);
     F₂ = zeros(N,N);
 
-
+    moo = zeros(N,N);
     Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
 
     angle = zeros(N,N);
 
+    fₛ = Δx
+    #freq_s = fₛ/2 * range(-1,stop = 1,length = N)
+    #freq = fₛ/2 * range(0,stop = 1, length = N/2)
+    k_freq = fftfreq(N)*N
+    k_freq2D = meshgrid(k_freq,k_freq)
+
+    knrm = sqrt( k_freq2D[1].^2 + k_freq2D[2].^2)
+    knrm = collect(Iterators.flatten(knrm))
+
+    kbins = range(0.5, N/2+1, step = 1)
+    kvals = 0.5 * (kbins[2:end] + kbins[1:end-1])
+
+
     for _ ∈ 1:round(t/Δt,digits = 0)
-        time = round(time,digits = 10);
-        #if time % 1 == 0
-        #     mooing!(moo,A₁,A₂);
-        #     setting!(moo);
-        angler!(angle,A₁,A₂);
+        time = round(time,digits = 1);
+        if time % 1 == 0
+            mooing!(moo,A₁,A₂);
+            setting!(moo);
+            angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-        PyPlot.imsave("PQEpoch/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀)/Δt)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
-        #end
+            
+            f_image = fftshift(FFTW.fft(moo))
+            f_images = abs.(f_image).^2
+            f_images = collect(Iterators.flatten(f_images))
+            Abins,_,_ = stats.binned_statistic(knrm,f_images, statistic = "mean", bins = kbins)
+            Abins *= π * (kbins[2:end].^2 - kbins[1:end-1].^2)
+
+            plotd = Plots.plot!(kvals,Abins,xaxis= :log,yaxis =:log,legend = false)
+            Plots.savefig(plotd,"PQEpoch/Fourier/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png")
+            
+            
+
+            PyPlot.imsave("PQEpoch/"*string(i)*"/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+        end
         PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
         time = time + Δt
 
@@ -106,6 +138,7 @@ function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
     return time
 end
+
 
 function PQplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
