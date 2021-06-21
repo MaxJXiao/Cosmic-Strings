@@ -17,7 +17,7 @@ Plotting
 # Pkg.add("Plots")
 # Pkg.add("FFTW")
 # Pkg.add("SciPy")
-#Pkg.add("GR")
+# Pkg.add("GR")
 
 import GR
 using BenchmarkTools
@@ -32,6 +32,7 @@ using CxxWrap
 using FFTW
 using SciPy
 stats = pyimport("scipy.stats")
+np = pyimport("numpy")
 
 x = randn(64,64,64);
 y = randn(512,512);
@@ -57,7 +58,7 @@ t₅₀ = t/50 ;
 for n ∈ 9:9
 
     @time begin
-        t₀ = 1e-10;
+        t₀ = 1;
         N = 2^n;
         println(N)
         
@@ -75,10 +76,11 @@ for n ∈ 9:9
             C₁ = rand(Normal(μ,σ),N,N);
             C₂ = rand(Normal(μ,σ),N,N);
         
+            Δx = 1
+            Δt = 0.1
         
-        
-            t₁ = run_2D!(N, t₀, 50, C₁, C₂, Ȧ₁, Ȧ₂,ω,η, Δx, Δt,i)
-            plotting_2D!(N,t₀,t₁,250,C₁,C₂,Ȧ₁,Ȧ₂,ω,η, Δx,Δt,fₐ[i],i)
+            t₁ = run_2D!(N, t₀, 250, C₁, C₂, Ȧ₁, Ȧ₂,ω,η, Δx, Δt,i)
+            #plotting_2D!(N,t₀,t₁,250,C₁,C₂,Ȧ₁,Ȧ₂,ω,η, Δx,Δt,fₐ[i],i)
         
         end
         
@@ -96,7 +98,7 @@ for n ∈ 9:9
     rₐ = range(15,stop = 24,length = 10);
     fₐ = 10 .^rₐ;
     Δx = 1;
-    Δt = 0.1;
+    Δt = 1e-2;
     
     for i ∈ 2:2
         print(string(i)*" ")
@@ -111,7 +113,7 @@ for n ∈ 9:9
     
     
     
-        t₁ = PQrun_2D!(N, t₀, 100, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
+        t₁ = PQrun_2D!(N, t₀, 100*Δt, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
         #PQplotting_2D!(N,t₀,t₁,t₂₀,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i)
     
     end
@@ -129,7 +131,7 @@ for n ∈ 9:9
     
     rₐ = range(15,stop = 24,length = 10);
     fₐ = 10 .^rₐ;
-    s = 50
+    s = 500
     
     
     for i ∈ 2:2
@@ -147,12 +149,12 @@ for n ∈ 9:9
         Δx = 1
         Δt = 0.1
     
-        t₁ = EQCDrun_2D!(N, t₀, s, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
+        t₁ = EQCDrun_2D!(N, t₀, s*Δt, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
 
         Δx = 1
         Δt = 1e-6
 
-        EQCDplotting_2D!(N,s,t₁,5000Δt,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i)
+        EQCDplotting_2D!(N,s/10,t₁,5000Δt,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i)
     
     end
     
@@ -169,7 +171,7 @@ for n ∈ 9:9
     
     rₐ = range(15,stop = 24,length = 10);
     fₐ = 10 .^rₐ;
-    s = 50;
+    s = 500;
     
     for i ∈ 2:2
         t₀ = 1
@@ -188,7 +190,7 @@ for n ∈ 9:9
         C₂ = rand(Normal(μ,σ),N,N);
     
     
-        t₁ = Lrun_2D!(N, t₀, s, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
+        t₁ = Lrun_2D!(N, t₀, s*Δt, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
         angle = zeros(N,N);
         angler!(angle,C₁,C₂);
         angler!(Ȧ,Ȧ₁,Ȧ₂)
@@ -196,7 +198,7 @@ for n ∈ 9:9
         Δx = 1;
         Δt = 1e-8;
         #t₁ = 1.61e-10 * (fₐ[i]/1e12)
-        Lplotting_2D!(N, s,t₁, 5000Δt, angle, Ȧ, Δx, Δt,fₐ[i],i)
+        Lplotting_2D!(N, s/10,t₁, 5000Δt, angle, Ȧ, Δx, Δt,fₐ[i],i)
         #PQplotting_2D!(N,t₀,t₁,t₂₀,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i)
     
     end
@@ -216,7 +218,7 @@ for n ∈ 9:9
     
     rₐ = range(15,stop = 24,length = 10);
     fₐ = 10 .^rₐ;
-    s = 150
+    s = 2000
     
     
     for i ∈ 2:2
@@ -233,16 +235,16 @@ for n ∈ 9:9
         C₂ = rand(Normal(μ,σ),N,N);
     
         Δx = 1
-        Δt = 0.1
+        Δt = 1e-2
     
-        t₁ = FPQrun_2D!(N, t₀, s, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
+        t₁ = FPQrun_2D!(N, t₀, s*Δt, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
 
         Δx = 1
         Δt = 1e-6
 
-        r = 10s
 
-        t₁ = FErun_2D!(N,s,t₁,r*Δt,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i)
+
+        t₁ = FErun_2D!(N,s/10,t₁,s*Δt,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i)
 
         angle = zeros(N,N);
         angler!(angle,C₁,C₂);
@@ -251,7 +253,7 @@ for n ∈ 9:9
         Δx = 1;
         Δt = 1e-8;
 
-        FLrun_2D!(N, s + r/10,t₁, r*Δt, angle, Ȧ, Δx, Δt,fₐ[i],i)
+        FLrun_2D!(N, 2s/10,t₁, s*Δt, angle, Ȧ, Δx, Δt,fₐ[i],i)
     
     end
     
