@@ -1,3 +1,4 @@
+
 #Late QCD
 #T << Λ
 
@@ -16,8 +17,7 @@ function LLaplacian_2D!(P,A,Δx)
 end
 
 
-function Lfupdate_2D!(F,M,A,Ȧ,η,ηₓ)
-    n = 6.68;
+function Lfupdate_2D!(F,M,A,Ȧ,η,ηₓ,n)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F)
         (i,j) = Tuple(😄)
         F[i,j] = @fastmath M[i,j] - ηₓ^n * η^2 * sin(A[i,j]) - 2/η * Ȧ[i,j];
@@ -35,8 +35,7 @@ function LAupdate_2D!(A,Δt,Ȧ,F)
 end
 
 
-function Lvelupdate_2D!(Ȧ,Δt,F,M,A,η,ηₓ)
-    n = 6.68
+function Lvelupdate_2D!(Ȧ,Δt,F,M,A,η,ηₓ,n)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ)
         (i,j) = Tuple(😄)
         Ȧ[i,j] = @fastmath Ȧ[i,j] .+ 0.5Δt .* (F[i,j] .+ M[i,j] - ηₓ^n * η^2 * sin(A[i,j]) - 2/η * Ȧ[i,j])
@@ -60,15 +59,22 @@ function Lηtime(time,fₐ)
     return ηₓ,η
 end
 
-function Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,fₐ)
+function Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,fₐ,s)
 
-    ηₓ,η = Lηtime(time,fₐ);
-    
+    #ηₓ,η = Lηtime(time,fₐ);
+    n = 1
+
+    ηᵪ = range(2.8,stop = 3.6,length = 5)
+    ηₓ = ηᵪ[s]
+
+    if time < ηₓ
+        ηₓ = time
+    end
 
     #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
     #F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
-    Lfupdate_2D!(F,M,A,Ȧ,η,ηₓ)
+    Lfupdate_2D!(F,M,A,Ȧ,time,ηₓ,n)
 
     #A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
     #A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
@@ -80,9 +86,9 @@ function Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,fₐ)
     #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
     #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
 
-    ηₓ,η = Lηtime(time+Δt,fₐ)
+    #ηₓ,η = Lηtime(time+Δt,fₐ)
 
-    Lvelupdate_2D!(Ȧ,Δt,F,M,A,η,ηₓ)
+    Lvelupdate_2D!(Ȧ,Δt,F,M,A,time + Δt,ηₓ,n)
 
     return nothing
 end
@@ -196,7 +202,7 @@ function Lplotting_2D!(N,t₀,t₁,t,A,Ȧ,Δx,Δt,fₐ,i)
         
             PyPlot.imsave("Late/"*string(i)*"/"*lpad( string(trunc(Int,t₀+lo/10 - 1)) ,3,"0")*".png",A,vmin=-π,vmax = π,cmap = "twilight")
         end
-        Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,fₐ)
+        Lupdate_2D!(A,Ȧ,M,F,Δx,Δt,time,fₐ,1)
         time = time + Δt
 
     end

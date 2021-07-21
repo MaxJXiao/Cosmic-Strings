@@ -26,8 +26,8 @@ end
 function PQfupdate_2D!(F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,fₐ)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
         (i,j) = Tuple(😄)
-        F₁[i,j] = @fastmath M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₁[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₁[i,j];
-        F₂[i,j] = @fastmath M₂[i,j] - λ * C₂[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₂[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₂[i,j];
+        F₁[i,j] = @fastmath M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) - λ * C₁[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₁[i,j];
+        F₂[i,j] = @fastmath M₂[i,j] - λ * C₂[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) - λ * C₂[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₂[i,j];
     end
     return nothing
 end
@@ -46,18 +46,18 @@ end
 function PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,λ,fₐ)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ₁)
         (i,j) = Tuple(😄)
-        Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₁[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₁[i,j]);
-        Ȧ₂[i,j] = @fastmath Ȧ₂[i,j] .+ 0.5Δt .* (F₂[i,j] .+ M₂[i,j] - λ * C₂[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + λ * C₂[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₂[i,j]);
+        Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) - λ * C₁[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₁[i,j]);
+        Ȧ₂[i,j] = @fastmath Ȧ₂[i,j] .+ 0.5Δt .* (F₂[i,j] .+ M₂[i,j] - λ * C₂[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) - λ * C₂[i,j]*8.4e5 * 1e12/(3fₐ) - 2/η * Ȧ₂[i,j]);
     end
     return nothing
 end
 
-function PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+function PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ)
 
     #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
     #F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
-    PQfupdate_2D!(F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,(time/t₀)^0.5,1,fₐ)
+    PQfupdate_2D!(F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,time,1,fₐ)
 
     #A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
     #A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
@@ -68,11 +68,15 @@ function PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,t
 
     #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
     #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
-
-    PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,((time + Δt)/t₀)^0.5,1,fₐ)
+    if time < 250
+        PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,time + Δt,1,fₐ)
+    else 
+        PQvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,time + Δt * 250/time,1,fₐ)
+    end
 
     return nothing
 end
+
 
 function meshgrid(xin,yin)
     nx=length(xin)
@@ -87,6 +91,10 @@ function meshgrid(xin,yin)
     end
     return (x=xout, y=yout)
 end
+
+
+
+
 
 
 function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
@@ -116,39 +124,43 @@ function PQrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
     kvals = 0.5 * (kbins[2:end] + kbins[1:end-1])
 
 
+
     for lo ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
         if lo % 10 == 0
             mooing!(moo,A₁,A₂);
+            println(moo[1,1])
             setting!(moo);
             angler!(angle,A₁,A₂);
 
             PyPlot.imsave("PQEpoch/1"*string(i)*"/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
-            
-            f_image = FFTW.fft(moo)
-            f_images = (abs.(f_image)).^2
-            f_images = collect(Iterators.flatten(f_images))
+            #img = load("PQEpoch/1"*string(i)*"/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png")
+
+
+            # f_image = FFTW.fft(moo)
+            # f_images = (abs.(f_image)).^2
+            # f_images = collect(Iterators.flatten(f_images))
    
-            Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
-            Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
+            # Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
+            # Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
          
-            plotd = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false, ylims = (1e1,1e8))
-            Plots.savefig(plotd,"PQEpoch/Fourier/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png")
+            # plotd = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false, ylims = (1e1,1e8))
+            # Plots.savefig(plotd,"PQEpoch/Fourier/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png")
             
-            f_image = FFTW.fft(angle)
-            f_images = (abs.(f_image)).^2
-            f_images = collect(Iterators.flatten(f_images))
+            # f_image = FFTW.fft(angle)
+            # f_images = (abs.(f_image)).^2
+            # f_images = collect(Iterators.flatten(f_images))
    
-            Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
-            Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
+            # Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
+            # Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
          
-            plotc = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false, ylims = (1e6,1e11))
-            Plots.savefig(plotc,"PQEpoch/Angle/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png")
+            # plotc = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false, ylims = (1e6,1e11))
+            # Plots.savefig(plotc,"PQEpoch/Angle/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png")
             
 
             PyPlot.imsave("PQEpoch/"*string(i)*"/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
         end
-        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ)
         time = time + Δt
 
     end
@@ -169,7 +181,7 @@ function PQplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
     Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
 
-    # moo = zeros(N,N);
+    moo = zeros(N,N);
     angle = zeros(N,N);
     angler!(angle,A₁,A₂);
 
@@ -177,15 +189,17 @@ function PQplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
         if time % 1 == 0
-        #     mooing!(moo,A₁,A₂);
-        #     setting!(moo);
+            mooing!(moo,A₁,A₂);
+            print(moo[1,1])
+            setting!(moo);
             angler!(angle,A₁,A₂);
         #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
         #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
             PyPlot.imsave("PQEpoch/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
         end
-        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₁,time,fₐ)
+        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ)
         time = time + Δt
+        
 
     end
 

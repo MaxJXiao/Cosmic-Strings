@@ -1,3 +1,4 @@
+
 function Laplacian_2D!(P₁,P₂,A₁,A₂,Δx)
     B₁ = CircularArray(A₁);
     B₂ = CircularArray(A₂);
@@ -137,6 +138,14 @@ function mooing!(moo,A₁,A₂)
     return nothing
 end
 
+function thresholding!(moo,t)
+    @inbounds Threads.@threads for 😄 ∈ CartesianIndices(moo)
+        (i,j) = Tuple(😄)
+        moo[i,j] = moo[i,j] > t
+    end
+    return moo
+end
+
 function angler!(angle,A₁,A₂)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(angle)
         (i,j) = Tuple(😄)
@@ -169,6 +178,12 @@ function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,i)
     kbins = range(0.5, N/2+1, step = 1)
     kvals = 0.5 * (kbins[2:end] + kbins[1:end-1])
 
+    
+
+    THRESHOLD = 190
+    B = zeros(0)
+
+
     for _ ∈ 1:round(t/Δt,digits = 0)
         time = round(time,digits = 1);
         if time % 1 == 0
@@ -176,30 +191,59 @@ function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,i)
             setting!(moo);
             angler!(angle,A₁,A₂);
 
-            f_image = FFTW.fft(moo)
-            f_images = (abs.(f_image)).^2
-            f_images = collect(Iterators.flatten(f_images))
+            # moo .= moo .< 0.45
+            
+            # mood = find_contours(moo)
+
+            # if length(mood) == 1
+            #     append!(x,length(mood[1]))
+            # else
+            #     append!(x,0)
+            # end
+
+            # f_image = FFTW.fft(moo)
+            # f_images = (abs.(f_image)).^2
+            # f_images = collect(Iterators.flatten(f_images))
    
-            Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
-            Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
+            # Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
+            # Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
          
-            plotd = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false, ylims = (1e2,1e8))
-            Plots.savefig(plotd,"plottting_angle/Fourier/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png")
+            # plotd = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false, ylims = (1e2,1e8))
+            # Plots.savefig(plotd,"plottting_angle/Fourier/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png")
             
 
-            f_image = FFTW.fft(angle)
-            f_images = (abs.(f_image)).^2
-            f_images = collect(Iterators.flatten(f_images))
+            # f_image = FFTW.fft(angle)
+            # f_images = (abs.(f_image)).^2
+            # f_images = collect(Iterators.flatten(f_images))
    
-            Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
-            Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
+            # Abins,_,_ = stats.binned_statistic(knrm,f_images,statistic = "mean",bins = kbins)
+            # Abins = π* Abins.* (kbins[2:end].^2 - kbins[1:end-1].^2)
          
-            plotc = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false)
-            Plots.savefig(plotc,"plottting_angle/Angle/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png")
+            # plotc = Plots.plot(kvals,Abins,xaxis= :log,yaxis =:log,legend = false)
+            # Plots.savefig(plotc,"plottting_angle/Angle/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png")
             
             #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
-            #     PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
+            PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
             PyPlot.imsave("plottting_angle/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
+
+
+            im = cv2.imread("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png")
+
+            imgray = cv2.cvtColor(im,cv2.COLOR_BGR2GRAY)
+
+            ret,thresh = cv2.threshold(imgray,THRESHOLD, 255,0)
+            contours,hierachy = cv2.findContours(cv2.bitwise_not(thresh),cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+            append!(B,length(contours))
+
+            
+
+            # C = cv2.drawContours(cv2.UMat(im),contours,-1,(1,255,1),3)
+     
+            # C = cv2.putText(C,string(length(contours)),(30,50),font,2,(0,0,0),3,0)
+
+            # cv2.imwrite("plottting_m/1/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",C)
+
+
         end
         update_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,ω,η,Δx,Δt,time)
         time = time + Δt
@@ -382,3 +426,4 @@ function plotting_3D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt)
 end
 
 
+  

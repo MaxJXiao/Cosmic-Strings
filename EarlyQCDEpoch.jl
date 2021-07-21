@@ -1,3 +1,4 @@
+using Base: simd_inner_length
 #Early Times in QCD Epoch
 #T ∼ Λ 
 #High Temperature mass of the axion is neglected.
@@ -23,8 +24,7 @@ function Laplacian_2D!(P₁,P₂,A₁,A₂,Δx)
 end
 
 
-function EQCDfupdate_2D!(F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,ηₓ)
-    n = 6.68;
+function EQCDfupdate_2D!(F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,ηₓ,n)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
         (i,j) = Tuple(😄)
         F₁[i,j] = @fastmath M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + ηₓ^n *η^2 * C₂[i,j]^2/((A₁[i,j]^2 .+ A₂[i,j]^2)^1.5) - 2/η * Ȧ₁[i,j];
@@ -44,8 +44,7 @@ function EQCDAupdate_2D!(A₁,A₂,Δt,Ȧ₁,Ȧ₂,F₁,F₂)
 end
 
 
-function EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,λ,ηₓ)
-    n = 6.68
+function EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,A₂,η,λ,ηₓ,n)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(Ȧ₁)
         (i,j) = Tuple(😄)
         Ȧ₁[i,j] = @fastmath Ȧ₁[i,j] .+ 0.5Δt .* (F₁[i,j] .+ M₁[i,j] - λ * C₁[i,j] * η^2 * (A₁[i,j]^2 .+ A₂[i,j]^2 .- 1) + ηₓ^n *η^2 * C₂[i,j]^2/((A₁[i,j]^2 .+ A₂[i,j]^2)^1.5) - 2/η * Ȧ₁[i,j])
@@ -54,9 +53,9 @@ function EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,C₁,C₂,A₁,
     return nothing
 end
 
-function mass(fₐ)
+
+function mass(fₐ,n)
     fₐ = fₐ*1e3
-    n = 1;
     Λ = 400;
     αₐ = 1.68e-7;
     mᵤ = 1.7; #1.7 - 3.3MeV
@@ -73,14 +72,13 @@ function mass(fₐ)
     return mass
 end
 
-function ηtime(time,fₐ)
-    b = 6.68
+function ηtime(time,fₐ,b)
     t₁ = 3.01e-7 * (fₐ/1e12)^(4/(4+b))
     n = 6.68
     η = (time/t₁)^0.5;
     T = 0.981e3 * (fₐ/1e12)^(-2/(4 + n))
 
-    ηₓ = T/103;
+    ηₓ = 0.4#T/103;
 
     if ηₓ > η
         ηₓ = η
@@ -89,18 +87,28 @@ function ηtime(time,fₐ)
     return ηₓ,η
 end
 
-function EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ)
+function EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ,r,s)
+
+    n = 1
 
     #λ = (fₐ/mass(fₐ))^2;
 
-    λ = 50;
-    ηₓ,η = ηtime(time,fₐ);
+    λᵪ = [1024 1448 3072 3584 5504];
+    #ηₓ,η = ηtime(time,fₐ);
+    λ = λᵪ[r]
+
+    ηᵪ = range(2.8,stop = 3.6,length = 5)
+    ηₓ = ηᵪ[s]
+
+    if time < ηₓ
+        ηₓ = time
+    end
     
 
     #F₁ .= M₁ .- a.^β .* λ .* A₁ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./time
     #F₂ .= M₂ .- a.^β .* λ .* A₂ .*(A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./time
 
-    EQCDfupdate_2D!(F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,η,λ,ηₓ)
+    EQCDfupdate_2D!(F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,Ȧ₁,Ȧ₂,time,λ,ηₓ,n)
 
     #A₁ .= A₁ .+ Δt .* (Ȧ₁ .+ 0.5Δt .* F₁)
     #A₂ .= A₂ .+ Δt .* (Ȧ₂ .+ 0.5Δt .* F₂)
@@ -112,9 +120,12 @@ function EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time
     #Ȧ₁ .= Ȧ₁ .+ 0.5Δt .* (F₁ .+ M₁ .- a₁.^β .* λ .* A₁ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₁ ./ (time + Δt))
     #Ȧ₂ .= Ȧ₂ .+ 0.5Δt .* (F₂ .+ M₂ .- a₁.^β .* λ .* A₂ .* (A₁.^2 .+ A₂.^2 .- η.^2) .- α .* © .* Ȧ₂ ./ (time + Δt))
 
-    ηₓ,η = ηtime(time+Δt,fₐ);
-
-    EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂,η,λ,ηₓ)
+    #ηₓ,η = ηtime(time+Δt,fₐ);
+    if time < 1.8
+        EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂, time + Δt,λ,ηₓ,n)
+    else
+        EQCDvelupdate_2D!(Ȧ₁,Ȧ₂,Δt,F₁,F₂,M₁,M₂,A₁,A₂,A₁,A₂, time + Δt* (1.8/time)^3.34,λ,ηₓ,n)
+    end
 
     return nothing
 end
@@ -182,7 +193,7 @@ function EQCDrun_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
 
             PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
         end
-        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ)
+        PQupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,t₀,time,fₐ,1,1)
         time = time + Δt
 
     end
@@ -252,10 +263,10 @@ function EQCDplotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ,i)
             PyPlot.imsave("EQCD/"*string(i)*"/"*lpad( string(trunc(Int,t₀ + lo/10 - 1)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
 
         end
-        EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ)
+        EQCDupdate_2D!(A₁,A₂,Ȧ₁,Ȧ₂,M₁,M₂,F₁,F₂,Δx,Δt,time,fₐ,1,1)
         time = time + Δt
         
     end
 
-    return nothing
+    return time
 end
