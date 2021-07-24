@@ -19,6 +19,7 @@ Plotting
 # Pkg.add("FFTW")
 # Pkg.add("SciPy")
 # Pkg.add("GR")
+# Pkg.add("Statistics")
 
 import GR
 using BenchmarkTools
@@ -33,6 +34,7 @@ using CxxWrap
 using FFTW
 using SciPy
 using JLD
+using Statistics
 stats = pyimport("scipy.stats")
 np = pyimport("numpy")
 cv2 = pyimport("cv2")
@@ -41,11 +43,6 @@ x = randn(64,64,64);
 y = randn(512,512);
 @time x = x.+1;
 @time y= y.+1;
-
-
-η = 1;
-ω = 5.0;
-N = 2^n;
 
 
 
@@ -91,6 +88,12 @@ end
 
 
 for n ∈ 9:9
+    
+η = 1;
+ω = 5.0;
+N = 2^n;
+
+
 
     @time begin
         t₀ = 1;
@@ -247,10 +250,11 @@ end
 
 
 
+@time begin
+    
+for n ∈ 9:9
 
-for n ∈ 3:3
-
-    @time begin
+    
     
     N = 2^n;
     println(N)
@@ -276,38 +280,167 @@ for n ∈ 3:3
         C₂ = rand(Normal(μ,σ),N,N);
     
         Δx = round(8000/N,digits = 2)
-        Δt = 0.0004
+        Δt = 0.004
     
-        FPQrun_2D!(N, t₀, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
+        tracker,cores,saxion,axion,axenergy = FPQrun_2D!(N, t₀, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
 
         
-        save("PQend.jld", "Real", C₁,"Imaginary",C₂)
+        save("PQendtest"*string(n)*".jld", "Real", C₁,"Imaginary",C₂,"Realvel",Ȧ₁,"RealIm",Ȧ₂)
+        save("PQStringstest"*string(n)*".jld","time",tracker,"number",cores)
+        save("PQStatstest"*string(n)*".jld","saxion",saxion,"axion",axion,"axenergy",axenergy)
     
     
     end
     
-    end
+    
+end
 end
 
+saxion = load("PQStatstest9.jld")["saxion"]
+axion = load("PQStatstest9.jld")["axion"]
+tracker = load("PQStringstest9.jld")["time"]
+axenergy = load("PQStatstest9.jld")["axenergy"]
 
-C₁ = load("PQend.jld")["Real"]
-C₂ = load("PQend.jld")["Imaginary"]
+n = 9
+
+N = 2^n
+
+k_freq = fftfreq(N)*N
+kx,ky = meshgrid(k_freq,k_freq)
+
+knrm = sqrt.( kx.^2 + ky.^2)
+knrm = collect(Iterators.flatten(knrm))
+
+kbins = range(0.5, N/2+1, step = 1)
+kvals = 0.5 * (kbins[2:end] + kbins[1:end-1])
+
+Plots.plot(kvals,axion[120],xaxis= :log,yaxis =:log,legend = false)
+Plots.plot(tracker,axenergy)
+
+
+
+
+tracker = load("PQStrings.jld")["time"]
+cores = load("PQStrings.jld")["number"]
+
+using Plots
+
+Plots.plot(tracker,cores)
+
+
+
+
+@time begin
+
+n = 9
+N = 2^n
+
+
+for s ∈ 1:1
+
+C₁ = JLD.load("PQend"*string(n)*".jld")["Real"]
+C₂ = JLD.load("PQend"*string(n)*".jld")["Imaginary"]
+Ȧ₁ = JLD.load("PQend"*string(n)*".jld")["Realvel"]
+Ȧ₂ = JLD.load("PQend"*string(n)*".jld")["RealIm"]
 
 t₁ = 0.4
 
 Δx = round(4/N,digits = 5)
 Δt = 0.001 
 
+rₐ = range(15,stop = 24,length = 10);
+fₐ = 10 .^rₐ;
+
+i = 1
+r = 1
 
 
-t₂ = FErun_2D!(N,t₁,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i,r,s)
 
-angle = zeros(N,N);
-angler!(angle,C₁,C₂);
-angler!(Ȧ,Ȧ₁,Ȧ₂)
+tracker,cores = FErun_2D!(N,t₁,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i,r,s)
 
 
-FLrun_2D!(N, t₂, 10, angle, Ȧ, Δx, Δt,fₐ[i],i,s)
+JLD.save("QCDend"*string(n)*string(r)*string(s)*".jld", "Real", C₁,"Imaginary",C₂,"Realvel",Ȧ₁,"RealIm",Ȧ₂)
+JLD.save("QCDStrings"*string(n)*string(r)*string(s)*".jld","time",tracker,"number",cores)
+    
+end
+
+end
+
+
+
+
+C₁ = load("EQCDend911.jld")["Real"]
+C₂ = load("EQCDend911.jld")["Imaginary"]
+angle = zeros(2^9,2^9)
+angler!(angle,C₁,C₂)
+PyPlot.imsave("E.png",angle,vmin=-π,vmax = π,cmap = "twilight")
+
+
+
+tracker = load("EQCDStrings911.jld")["time"]
+cores = load("EQCDStrings911.jld")["number"]
+
+using Plots
+
+Plots.plot(tracker,cores)
+
+
+
+
+
+@time begin
+
+    n = 9
+    N = 2^n
+    
+    
+    
+    Δx = round(4/N,digits = 5)
+    Δt = 0.001 
+    
+    rₐ = range(15,stop = 24,length = 10);
+    fₐ = 10 .^rₐ;
+    
+    i = 1
+    
+    for s ∈ 1:1
+    
+        t₂ = 7
+    
+        C₁ = load("EQCDend911.jld")["Real"]
+        C₂ = load("EQCDend911.jld")["Imaginary"]
+        Ȧ₁ = load("EQCDend911.jld")["Realvel"]
+        Ȧ₂ = load("EQCDend911.jld")["RealIm"]
+    
+        angle = zeros(N,N);
+        Ȧ = zeros(N,N)
+    
+        angler!(angle,C₁,C₂);
+        angler!(Ȧ,Ȧ₁,Ȧ₂)
+    
+    
+        tracker,cores = FLrun_2D!(N, t₂, 10, angle, Ȧ, Δx, Δt,fₐ[i],i,s)
+    
+    
+    
+        save("LateStrings"*string(n)*string(s)*".jld","time",tracker,"number",cores)
+    
+    end
+    
+    
+    end
+
+
+    
+
+tracker = load("LateStrings91.jld")["time"]
+cores = load("LateStrings91.jld")["number"]
+
+
+using Plots
+
+Plots.plot(tracker,cores)
+
 
 
 
