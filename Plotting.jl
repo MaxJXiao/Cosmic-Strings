@@ -249,52 +249,48 @@ for n ∈ 9:9
 end
 
 
-
 @time begin
+    for n ∈ 9:9
     
-for n ∈ 9:9
-
-    
-    
-    N = 2^n;
-    println(N)
-    
-    rₐ = range(15,stop = 24,length = 10);
-    fₐ = 10 .^rₐ;
-    r = 1
-    s = 1
-    
-    
-    for i ∈ 1:1
         
-        t₀ = 0.0001;
-        print(string(i)*" ")
-        println(fₐ[i])
-    
-        Ȧ₁ = zeros(N,N);
-        Ȧ₂ = zeros(N,N);
-        Ȧ = zeros(N,N);
-    
-        μ,σ = 0, 0.1;
-        C₁ = rand(Normal(μ,σ),N,N);
-        C₂ = rand(Normal(μ,σ),N,N);
-    
-        Δx = round(8000/N,digits = 2)
-        Δt = 0.004
-    
-        tracker,cores,saxion,axion,axenergy = FPQrun_2D!(N, t₀, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
-
         
-        save("PQendtest"*string(n)*".jld", "Real", C₁,"Imaginary",C₂,"Realvel",Ȧ₁,"RealIm",Ȧ₂)
-        save("PQStringstest"*string(n)*".jld","time",tracker,"number",cores)
-        save("PQStatstest"*string(n)*".jld","saxion",saxion,"axion",axion,"axenergy",axenergy)
+        N = 2^n;
+        println(N)
+        
+        rₐ = range(15,stop = 24,length = 10);
+        fₐ = 10 .^rₐ;
+        r = 1
+        s = 1
+        
+        
+        for i ∈ 1:1
+            
+            t₀ = 0.0001;
+            print(string(i)*" ")
+            println(fₐ[i])
+        
+            Ȧ₁ = zeros(N,N);
+            Ȧ₂ = zeros(N,N);
     
+        
+            μ,σ = 0, 0.1;
+            C₁ = rand(Normal(μ,σ),N,N);
+            C₂ = rand(Normal(μ,σ),N,N);
+        
+      
+            Δx = round(8000/N,digits = 2)
+            Δt = 0.004*10
+        
+            FPQrun_2D!(n, N, t₀, C₁, C₂, Ȧ₁, Ȧ₂, Δx, Δt,fₐ[i],i)
     
+      
+    
+        end
+        
+        
     end
-    
-    
-end
-end
+        println(' ')
+    end
 
 saxion = load("PQStatstest9.jld")["saxion"]
 axion = load("PQStatstest9.jld")["axion"]
@@ -328,43 +324,54 @@ using Plots
 Plots.plot(tracker,cores)
 
 
-
-
 @time begin
 
-n = 9
-N = 2^n
-
-
-for s ∈ 1:1
-
-C₁ = JLD.load("PQend"*string(n)*".jld")["Real"]
-C₂ = JLD.load("PQend"*string(n)*".jld")["Imaginary"]
-Ȧ₁ = JLD.load("PQend"*string(n)*".jld")["Realvel"]
-Ȧ₂ = JLD.load("PQend"*string(n)*".jld")["RealIm"]
-
-t₁ = 0.4
-
-Δx = round(4/N,digits = 5)
-Δt = 0.001 
-
-rₐ = range(15,stop = 24,length = 10);
-fₐ = 10 .^rₐ;
-
-i = 1
-r = 1
-
-
-
-tracker,cores = FErun_2D!(N,t₁,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i,r,s)
-
-
-JLD.save("QCDend"*string(n)*string(r)*string(s)*".jld", "Real", C₁,"Imaginary",C₂,"Realvel",Ȧ₁,"RealIm",Ȧ₂)
-JLD.save("QCDStrings"*string(n)*string(r)*string(s)*".jld","time",tracker,"number",cores)
+    n = 9
+    N = 2^n
     
-end
-
-end
+    
+    Δx = round(4/N,digits = 5)
+    Δt = 0.001 * 10
+    
+    rₐ = range(15,stop = 24,length = 10);
+    fₐ = 10 .^rₐ;
+    
+    i = 1
+    for r ∈ 1:1
+        for s ∈ 1:1
+            C₁ = load("Saving/PQ/PQend"*string(n)*".jld")["Real"]
+            C₂ = load("Saving/PQ/PQend"*string(n)*".jld")["Imaginary"]
+            Ȧ₁ = load("Saving/PQ/PQend"*string(n)*".jld")["Realvel"]
+            Ȧ₂ = load("Saving/PQ/PQend"*string(n)*".jld")["RealIm"]
+    
+            t₁ = 0.4
+    
+    
+            FErun_2D!(n,N,t₁,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i,r,s)
+    
+        
+        end
+    end
+        
+    # for r ∈ 2:5
+    #     for s ∈ 1:1
+    #         C₁ = load("PQend"*string(n)*".jld")["Real"]
+    #         C₂ = load("PQend"*string(n)*".jld")["Imaginary"]
+    #         Ȧ₁ = load("PQend"*string(n)*".jld")["Realvel"]
+    #         Ȧ₂ = load("PQend"*string(n)*".jld")["RealIm"]
+    
+    #         t₁ = 0.4
+    
+    
+    #         FErun_2D!(N,t₁,C₁,C₂,Ȧ₁,Ȧ₂,Δx,Δt,fₐ[i],i,r,s)
+    
+    
+    #     end
+    # end
+        
+    println(' ')
+    
+    end
 
 
 
