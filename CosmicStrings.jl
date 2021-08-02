@@ -18,6 +18,67 @@ function Laplacian_2D!(P₁,P₂,A₁,A₂,Δx)
     return nothing
 end
 
+
+function meshgrid(xin,yin)
+    nx=length(xin)
+    ny=length(yin)
+    xout=zeros(ny,nx)
+    yout=zeros(ny,nx)
+    for jx=1:nx
+        for ix=1:ny
+            xout[ix,jx]=xin[jx]
+            yout[ix,jx]=yin[ix]
+        end
+    end
+    return (x=xout, y=yout)
+end
+
+
+
+
+function Cores_2D!(N,angle,thr)
+    s = []
+    count = 0
+    accept = 0.5 - 0.5*thr/100
+    for 😄 ∈ 1:(N-1)
+        for 🥪 ∈ 1:(N-1)
+            norm₁ = (angle[😄,🥪] + π)/(2π)
+            norm₂ = (angle[😄+1,🥪] + π)/(2π)
+            norm₃ = (angle[😄+1,🥪+1] + π)/(2π)
+            norm₄ = (angle[😄,🥪+1] + π)/(2π)
+
+            θ₁ = min(abs(norm₂ - norm₁), 1 - abs(norm₂ - norm₁))
+            θ₂ = min(abs(norm₃ - norm₂), 1 - abs(norm₃ - norm₂))
+            θ₃ = min(abs(norm₄ - norm₃), 1 - abs(norm₄ - norm₃))
+            θₛ = θ₁ + θ₂ + θ₃
+
+            if θₛ > accept 
+                append!(s,[[😄,🥪]])
+            end
+        end
+    end
+
+    if length(s) > 0
+        for 🇸🇦 ∈ 1:(length(s)-1)
+  
+            diffᵣ = s[🇸🇦 + 1][1] - s[🇸🇦][1]
+            diffₛ = s[🇸🇦 + 1][2] - s[🇸🇦][2]
+
+            if diffᵣ == 0 && diffₛ == 1
+                count += 1
+            end
+            if diffᵣ == 1 && diffₛ == 0
+                count += 1
+            end
+        end
+    end
+
+    num = length(s) - count
+
+    return num
+end
+
+
 function fupdate_2D!(F₁,F₂,M₁,M₂,a,©,C₁,C₂,A₁,A₂,Ȧ₁,Ȧ₂,η,time,β,α,λ)
     @inbounds Threads.@threads for 😄 ∈ CartesianIndices(F₁)
         (i,j) = Tuple(😄)
@@ -154,6 +215,8 @@ function angler!(angle,A₁,A₂)
     return nothing
 end
 
+
+
 function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,i)
 
     time = t₀
@@ -169,19 +232,29 @@ function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,i)
 
     Laplacian_2D!(M₁,M₂,A₁,A₂,Δx)
 
-    k_freq = fftfreq(N)*N
-    kx,ky = meshgrid(k_freq,k_freq)
+    # k_freq = fftfreq(N)*N
+    # kx,ky = meshgrid(k_freq,k_freq)
 
-    knrm = sqrt.( kx.^2 + ky.^2)
-    knrm = collect(Iterators.flatten(knrm))
+    # knrm = sqrt.( kx.^2 + ky.^2)
+    # knrm = collect(Iterators.flatten(knrm))
 
-    kbins = range(0.5, N/2+1, step = 1)
-    kvals = 0.5 * (kbins[2:end] + kbins[1:end-1])
+    # kbins = range(0.5, N/2+1, step = 1)
+    # kvals = 0.5 * (kbins[2:end] + kbins[1:end-1])
 
     
 
     THRESHOLD = 190
+    thr = 1
     B = zeros(0)
+
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    topLeftCornerOfText = (30,50)
+    fontScale              = 1
+    fontColor              = (0,0,0)
+    lineType               = 2
+
+    bottomLeftCornerOfText = (30,500)
+
 
 
     for _ ∈ 1:round(t/Δt,digits = 0)
@@ -190,6 +263,9 @@ function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,i)
             mooing!(moo,A₁,A₂);
             setting!(moo);
             angler!(angle,A₁,A₂);
+
+            
+            strng = Cores_2D!(N,angle,thr)
 
             # moo .= moo .< 0.45
             
@@ -223,6 +299,7 @@ function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,i)
             # Plots.savefig(plotc,"plottting_angle/Angle/"*lpad( string(trunc(Int,(time-t₀))) ,3,"0")*".png")
             
             #     #save("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png", colorview(Gray,moo));
+
             PyPlot.imsave("plottting_m/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",moo,vmin=0,vmax = 1,cmap = "gray")
             PyPlot.imsave("plottting_angle/"*string(i)*"/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",angle,vmin=-π,vmax = π,cmap = "twilight")
 
@@ -233,15 +310,29 @@ function run_2D!(N,t₀,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,i)
 
             ret,thresh = cv2.threshold(imgray,THRESHOLD, 255,0)
             contours,hierachy = cv2.findContours(cv2.bitwise_not(thresh),cv2.RETR_TREE,cv2.CHAIN_APPROX_NONE)
+
+            
+
             append!(B,length(contours))
 
             
 
-            # C = cv2.drawContours(cv2.UMat(im),contours,-1,(1,255,1),3)
+            C = cv2.drawContours(cv2.UMat(im),contours,-1,(1,255,1),3)
      
-            # C = cv2.putText(C,string(length(contours)),(30,50),font,2,(0,0,0),3,0)
+            C = cv2.putText(C,string(length(contours)), 
+            topLeftCornerOfText, 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
 
-            # cv2.imwrite("plottting_m/1/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",C)
+            C = cv2.putText(C,string(strng),bottomLeftCornerOfText, 
+            font, 
+            fontScale,
+            fontColor,
+            lineType)
+
+            cv2.imwrite("plottting_m/1/"*lpad( string(trunc(Int,time-t₀)) ,3,"0")*".png",C)
 
 
         end
@@ -307,6 +398,77 @@ function plotting_2D!(N,t₀,t₁,t,A₁,A₂,Ȧ₁,Ȧ₂,ω,η,Δx,Δt,fₐ,i
     return nothing
 end
 
+
+function Cores_3D!(N,angle,thr)
+    s = []
+    count = 0
+    accept = 0.5 - 0.5*thr/100
+    for 😄 ∈ 1:(N-1)
+        for 🥪 ∈ 1:(N-1)
+            for 🎅 ∈ 1:(N-1)
+                anorm₁ = (angle[😄,🥪,🎅] + π)/(2π)
+                anorm₂ = (angle[😄+1,🥪,🎅] + π)/(2π)
+                anorm₃ = (angle[😄+1,🥪+1,🎅] + π)/(2π)
+                anorm₄ = (angle[😄,🥪+1,🎅] + π)/(2π)
+
+                bnorm₁ = (angle[😄,🥪,🎅] + π)/(2π)
+                bnorm₂ = (angle[😄+1,🥪,🎅] + π)/(2π)
+                bnorm₃ = (angle[😄+1,🥪,🎅+1] + π)/(2π)
+                bnorm₄ = (angle[😄,🥪,🎅+1] + π)/(2π)
+
+                cnorm₁ = (angle[😄,🥪,🎅] + π)/(2π)
+                cnorm₂ = (angle[😄,🥪+1,🎅] + π)/(2π)
+                cnorm₃ = (angle[😄,🥪+1,🎅+1] + π)/(2π)
+                cnorm₄ = (angle[😄,🥪,🎅+1] + π)/(2π)
+
+                aθ₁ = min(abs(anorm₂ - anorm₁),1-abs(anorm₂ - anorm₁))
+                aθ₂ = min(abs(anorm₃ - anorm₂),1-abs(anorm₃ - anorm₂))
+                aθ₃ = min(abs(anorm₄ - anorm₃),1-abs(anorm₄ - anorm₃))
+
+                bθ₁ = min(abs(bnorm₂ - bnorm₁),1-abs(bnorm₂ - bnorm₁))
+                bθ₂ = min(abs(bnorm₃ - bnorm₂),1-abs(bnorm₃ - bnorm₂))
+                bθ₃ = min(abs(bnorm₄ - bnorm₃),1-abs(bnorm₄ - bnorm₃))
+
+                cθ₁ = min(abs(cnorm₂ - cnorm₁),1-abs(cnorm₂ - cnorm₁))
+                cθ₂ = min(abs(cnorm₃ - cnorm₂),1-abs(cnorm₃ - cnorm₂))
+                cθ₃ = min(abs(cnorm₄ - cnorm₃),1-abs(cnorm₄ - cnorm₃))
+
+                aθ = aθ₁ + aθ₂ + aθ₃
+                bθ = bθ₁ + bθ₂ + bθ₃
+                cθ = cθ₁ + cθ₂ + cθ₃
+                θₛ = aθ + bθ + cθ
+
+                if θₛ > accept 
+                    append!(s,[[😄,🥪,🎅]])
+                end
+            end
+        end
+    end
+
+    if length(s) > 0
+        for 🇸🇦 ∈ 1:(length(s)-1)
+  
+            diffᵣ = s[🇸🇦 + 1][1] - s[🇸🇦][1]
+            diffₛ = s[🇸🇦 + 1][2] - s[🇸🇦][2]
+            diffₜ = s[🇸🇦 + 1][3] - s[🇸🇦][3]
+
+            if diffᵣ == 0 && diffₛ == 1 && diffₜ == 0
+                count += 1
+            end
+            if diffᵣ == 1 && diffₛ == 0 && diffₜ == 0
+                count += 1
+            end
+            if diffᵣ == 0 && diffₛ == 0 && diffₜ == 1
+                count += 1
+            end
+        end
+    end
+
+    num = length(s) - count
+    num = 1.5num
+
+    return num
+end
 
 
 
